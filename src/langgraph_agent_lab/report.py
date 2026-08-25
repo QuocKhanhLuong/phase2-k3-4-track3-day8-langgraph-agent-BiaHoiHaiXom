@@ -30,6 +30,12 @@ def render_report(metrics: MetricsReport) -> str:
     )
     commit = os.getenv("GITHUB_SHA", "current checkout; record `git rev-parse HEAD` at submission")
     scenario_rows = "\n".join(_scenario_row(item) for item in metrics.scenario_metrics)
+    hitl_evidence = (
+        "Real LangGraph `interrupt()`/`Command(resume=...)` was observed for every "
+        "approval-required scenario."
+        if metrics.resume_success
+        else "No fully verified real HITL resume set was observed in this run."
+    )
 
     return f"""# Day 08 Lab Report
 
@@ -90,13 +96,12 @@ Nodes return partial updates and never mutate append-only input lists in place.
 | Success rate | {metrics.success_rate:.2%} |
 | Average events/nodes visited | {metrics.avg_nodes_visited:.2f} |
 | Total retries | {metrics.total_retries} |
-| Approval-node visits | {metrics.total_interrupts} |
-| Verified resume/replay | {'yes' if metrics.resume_success else 'no'} |
+| Real HITL interrupts | {metrics.total_interrupts} |
+| Verified HITL resume | {'yes' if metrics.resume_success else 'no'} |
 
-`total_interrupts` follows the scaffold convention and counts visits to the approval node;
-it is not claimed as a real pause/resume interrupt unless the optional interrupt mode is used.
+{hitl_evidence}
 
-| Scenario | Expected route | Actual route | Success | Retries | Approval visits | Latency ms |
+| Scenario | Expected route | Actual route | Success | Retries | Real interrupts | Latency ms |
 |---|---|---|---:|---:|---:|---:|
 {scenario_rows}
 
@@ -117,32 +122,35 @@ version should use a structured LLM judge with timeout, fallback, and cost contr
 
 ### Failure mode 2 — consequential action executed without approval
 
-A `risky` ticket must follow `risky_action → approval`. Only an explicit
-`approval.approved == true` routes to `tool`; rejection routes to `clarify`.
+A `risky` ticket must follow `risky_action → approval`. With real HITL enabled, the
+approval node calls LangGraph `interrupt()`, suspending execution for the current
+`thread_id`. The CLI obtains a human decision and resumes the same thread with
+`Command(resume=decision)`. Only `approval.approved == true` routes to `tool`; rejection
+routes to `clarify`.
+
 The tool also checks approval defensively and returns an error instead of executing when
 approval is absent/rejected. Audit evidence is the event ordering: `approval` must appear
 before `tool`; on rejection, no tool event should appear after the approval event.
 
-Residual risk: mock approval is the CI default. Real human pause/resume requires
-`LANGGRAPH_INTERRUPT=true` and a reviewer resume command.
-
 ## 6. Persistence / recovery evidence
 
 The compiled graph receives the checkpointer created by configuration, and every invocation
-uses `configurable.thread_id`. The default lab config uses `MemorySaver`, which demonstrates
-same-process checkpoint/state-history behavior but is not durable across process restart.
+uses `configurable.thread_id`. The default lab config uses `MemorySaver`, which is sufficient
+to pause and resume a real HITL interrupt in the same process and to inspect state history.
+It is not durable across process restart.
 
-`run-scenarios` also writes `outputs/persistence.json` (next to the metrics output) by reading
-`graph.get_state_history()` for every thread. This gives concrete checkpoint-count and
-finalize evidence. `resume_success` remains `false` because this core submission does not
-claim a verified crash-resume/replay.
+`run-scenarios` writes `outputs/persistence.json` by reading `graph.get_state_history()` for
+every thread. For HITL scenarios it also records `real_interrupt_count` and
+`resume_observed`. The report sets `resume_success=true` only when every approval-required
+scenario both completes successfully and has a real observed interrupt/resume.
 
 ## 7. Extension work
 
-- SQLite checkpointer support is implemented behind the optional `sqlite` extra.
-- Optional real HITL uses LangGraph `interrupt()` when `LANGGRAPH_INTERRUPT=true`.
-- The core config remains memory + mock approval so CI does not depend on an interactive
-  reviewer or external database.
+- OpenAI is the selected LLM provider for structured classification and grounded answers.
+- Real HITL is implemented with LangGraph `interrupt()` and `Command(resume=...)`.
+- SQLite checkpointer support remains available behind the optional `sqlite` extra for
+  durable restart/recovery evidence.
+- CI can still run with real HITL disabled so it does not block on an interactive reviewer.
 
 These extensions do not change core routing, bounded retry, approval ordering, or
 termination behavior.
