@@ -23,7 +23,7 @@ def _scenario_row(item: ScenarioMetric) -> str:
 
 def render_report(metrics: MetricsReport) -> str:
     """Render a complete evidence-oriented lab report."""
-    student = os.getenv("LAB_STUDENT_NAME", "Lương Quốc Khánh")
+    team = os.getenv("LAB_TEAM_NAME", "BiaHoiHaiXom")
     repo = os.getenv(
         "LAB_REPO",
         "QuocKhanhLuong/phase2-k3-4-track3-day8-langgraph-agent-BiaHoiHaiXom",
@@ -41,10 +41,18 @@ def render_report(metrics: MetricsReport) -> str:
 
 ## 1. Team / student
 
-- Name: {student}
+- Team: {team}
 - Repo/commit: `{repo}` / {commit}
 - Date: {date.today().isoformat()}
 - Secrets: API keys are read from local environment only and are not written to metrics/report.
+
+### Members & Work Distribution
+
+| Member | Student ID | Role | Key Contributions |
+|---|---|---|---|
+| Lương Quốc Khánh | (Lead) | Core Architecture & Routing | LangGraph State schema (`state.py`), Graph wiring (`graph.py`), Conditional routing functions (`routing.py`), Bounded retry & Dead letter design, Persistence & Checkpoint adapters (`persistence.py`). |
+| Hoàng Đức Anh | 2A202601223 | AI/LLM & HITL Specialist | Multi-provider LLM Factory (`llm.py`), Structured output classification (`classify_node`), Grounded response generation (`answer_node`), Real HITL Interrupt & Resume mechanics (`approval_node`, `cli.py`). |
+| Nguyễn Thu Huyền | 2A202601027 | Evaluation, Metrics & QA | Evaluation & Tool failure nodes (`evaluate_node`, `tool_node`, `ask_clarification_node`), Automated metrics & report generation (`metrics.py`, `report.py`), Test suites (`pytest`, `ruff`, `mypy`), Scenario validation. |
 
 ## 2. Architecture
 
