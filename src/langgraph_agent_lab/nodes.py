@@ -210,7 +210,9 @@ Write the final helpful response in plain text.
     except Exception as exc:
         error = f"answer generation failed: {type(exc).__name__}: {exc}"
         return {
-            "final_answer": "Unable to generate the final support response because the LLM call failed.",
+            "final_answer": (
+                "Unable to generate the final support response because the LLM call failed."
+            ),
             "errors": [error],
             "events": [
                 make_event(
