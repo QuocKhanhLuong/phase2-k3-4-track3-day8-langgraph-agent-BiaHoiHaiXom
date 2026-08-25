@@ -1,4 +1,4 @@
-"""Provider-agnostic LLM factory used by classifier and answer nodes."""
+"""Provider-aware LLM factory used by classifier and answer nodes."""
 
 from __future__ import annotations
 
@@ -10,13 +10,44 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def get_llm(model: str | None = None, temperature: float = 0.0) -> Any:
-    """Create an LLM client from environment configuration.
+def _provider() -> str:
+    """Resolve the selected provider, preferring explicit configuration."""
+    selected = os.getenv("LLM_PROVIDER", "").strip().lower()
+    if selected:
+        if selected not in {"openai", "gemini", "anthropic"}:
+            raise RuntimeError("LLM_PROVIDER must be one of: openai, gemini, anthropic")
+        return selected
 
-    Provider priority is Gemini, then OpenAI, then Anthropic. ``LLM_MODEL`` can
-    override each provider's default model.
-    """
     if os.getenv("GEMINI_API_KEY"):
+        return "gemini"
+    if os.getenv("OPENAI_API_KEY"):
+        return "openai"
+    if os.getenv("ANTHROPIC_API_KEY"):
+        return "anthropic"
+    raise RuntimeError(
+        "No LLM API key found. Set LLM_PROVIDER and its API key, or configure exactly one key."
+    )
+
+
+def get_llm(model: str | None = None, temperature: float = 0.0) -> Any:
+    """Create an LLM client from explicit or auto-detected provider configuration."""
+    provider = _provider()
+
+    if provider == "openai":
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError("LLM_PROVIDER=openai requires OPENAI_API_KEY")
+        try:
+            from langchain_openai import ChatOpenAI
+        except ImportError as exc:
+            raise RuntimeError("Install: pip install langchain-openai") from exc
+        return ChatOpenAI(
+            model=model or os.getenv("LLM_MODEL", "gpt-4o-mini"),
+            temperature=temperature,
+        )
+
+    if provider == "gemini":
+        if not os.getenv("GEMINI_API_KEY"):
+            raise RuntimeError("LLM_PROVIDER=gemini requires GEMINI_API_KEY")
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
         except ImportError as exc:
@@ -27,27 +58,13 @@ def get_llm(model: str | None = None, temperature: float = 0.0) -> Any:
             temperature=temperature,
         )
 
-    if os.getenv("OPENAI_API_KEY"):
-        try:
-            from langchain_openai import ChatOpenAI
-        except ImportError as exc:
-            raise RuntimeError("Install: pip install langchain-openai") from exc
-        return ChatOpenAI(
-            model=model or os.getenv("LLM_MODEL", "gpt-4o-mini"),
-            temperature=temperature,
-        )
-
-    if os.getenv("ANTHROPIC_API_KEY"):
-        try:
-            from langchain_anthropic import ChatAnthropic
-        except ImportError as exc:
-            raise RuntimeError("Install: pip install langchain-anthropic") from exc
-        return ChatAnthropic(
-            model=model or os.getenv("LLM_MODEL", "claude-sonnet-4-20250514"),
-            temperature=temperature,
-        )
-
-    raise RuntimeError(
-        "No LLM API key found. Set exactly one of GEMINI_API_KEY, OPENAI_API_KEY, "
-        "or ANTHROPIC_API_KEY in .env."
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise RuntimeError("LLM_PROVIDER=anthropic requires ANTHROPIC_API_KEY")
+    try:
+        from langchain_anthropic import ChatAnthropic
+    except ImportError as exc:
+        raise RuntimeError("Install: pip install langchain-anthropic") from exc
+    return ChatAnthropic(
+        model=model or os.getenv("LLM_MODEL", "claude-sonnet-4-20250514"),
+        temperature=temperature,
     )
