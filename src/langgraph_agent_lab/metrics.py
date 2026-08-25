@@ -39,6 +39,7 @@ def metric_from_state(
     expected_route: str,
     approval_required: bool,
     latency_ms: int = 0,
+    observed_interrupts: int | None = None,
 ) -> ScenarioMetric:
     """Convert final graph state into an auditable per-scenario metric."""
     events = state.get("events", []) or []
@@ -47,7 +48,8 @@ def metric_from_state(
     approval = state.get("approval")
     nodes = [event.get("node", "unknown") for event in events]
     retry_count = sum(1 for node in nodes if node == "retry")
-    interrupt_count = sum(1 for node in nodes if node == "approval")
+    approval_visits = sum(1 for node in nodes if node == "approval")
+    interrupt_count = approval_visits if observed_interrupts is None else observed_interrupts
     critical_failure = any(
         event.get("node") in {"classify", "answer"} and event.get("event_type") == "failed"
         for event in events
@@ -76,7 +78,7 @@ def metric_from_state(
 
 
 def summarize_metrics(items: list[ScenarioMetric]) -> MetricsReport:
-    """Aggregate per-scenario metrics without overstating resume evidence."""
+    """Aggregate per-scenario metrics."""
     if not items:
         raise ValueError("No scenario metrics to summarize")
     return MetricsReport(
