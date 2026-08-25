@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from .llm import get_llm
 from .state import AgentState, ApprovalDecision, make_event
@@ -16,7 +16,7 @@ class ClassificationDecision(BaseModel):
 
     route: Literal["simple", "tool", "missing_info", "risky", "error"]
     risk_level: Literal["low", "medium", "high"] = "low"
-    reason: str = Field(min_length=1)
+    reason: str = ""
 
 
 def _content_to_text(content: object) -> str:
