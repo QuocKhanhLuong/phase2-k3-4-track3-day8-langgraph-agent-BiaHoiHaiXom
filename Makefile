@@ -1,7 +1,10 @@
-.PHONY: install test lint typecheck run-scenarios grade-local clean
+.PHONY: install install-openai test lint typecheck run-scenarios run-hitl grade-local clean
 
 install:
 	pip install -e '.[dev]'
+
+install-openai:
+	pip install -e '.[dev,openai]'
 
 test:
 	pytest
@@ -14,6 +17,9 @@ typecheck:
 
 run-scenarios:
 	python -m langgraph_agent_lab.cli run-scenarios --config configs/lab.yaml --output outputs/metrics.json
+
+run-hitl:
+	LANGGRAPH_INTERRUPT=true python -m langgraph_agent_lab.cli run-scenarios --config configs/lab.yaml --output outputs/metrics.json
 
 grade-local:
 	python -m langgraph_agent_lab.cli validate-metrics --metrics outputs/metrics.json
