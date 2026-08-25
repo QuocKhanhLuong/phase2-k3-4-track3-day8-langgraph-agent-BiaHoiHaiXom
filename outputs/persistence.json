@@ -1,0 +1,65 @@
+[
+  {
+    "thread_id": "thread-S01_simple",
+    "checkpoint_count": 6,
+    "history_available": true,
+    "scenario_id": "S01_simple",
+    "real_interrupt_count": 0,
+    "resume_observed": false,
+    "finalize_observed": true
+  },
+  {
+    "thread_id": "thread-S02_tool",
+    "checkpoint_count": 8,
+    "history_available": true,
+    "scenario_id": "S02_tool",
+    "real_interrupt_count": 0,
+    "resume_observed": false,
+    "finalize_observed": true
+  },
+  {
+    "thread_id": "thread-S03_missing",
+    "checkpoint_count": 6,
+    "history_available": true,
+    "scenario_id": "S03_missing",
+    "real_interrupt_count": 0,
+    "resume_observed": false,
+    "finalize_observed": true
+  },
+  {
+    "thread_id": "thread-S04_risky",
+    "checkpoint_count": 10,
+    "history_available": true,
+    "scenario_id": "S04_risky",
+    "real_interrupt_count": 1,
+    "resume_observed": true,
+    "finalize_observed": true
+  },
+  {
+    "thread_id": "thread-S05_error",
+    "checkpoint_count": 12,
+    "history_available": true,
+    "scenario_id": "S05_error",
+    "real_interrupt_count": 0,
+    "resume_observed": false,
+    "finalize_observed": true
+  },
+  {
+    "thread_id": "thread-S06_delete",
+    "checkpoint_count": 8,
+    "history_available": true,
+    "scenario_id": "S06_delete",
+    "real_interrupt_count": 1,
+    "resume_observed": true,
+    "finalize_observed": true
+  },
+  {
+    "thread_id": "thread-S07_dead_letter",
+    "checkpoint_count": 7,
+    "history_available": true,
+    "scenario_id": "S07_dead_letter",
+    "real_interrupt_count": 0,
+    "resume_observed": false,
+    "finalize_observed": true
+  }
+]

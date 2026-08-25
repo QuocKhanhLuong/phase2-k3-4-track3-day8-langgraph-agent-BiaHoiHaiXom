@@ -15,7 +15,7 @@ from .metrics import MetricsReport, metric_from_state, summarize_metrics, write_
 from .persistence import build_checkpointer
 from .report import write_report
 from .scenarios import load_scenarios
-from .state import initial_state
+from .state import AgentState, initial_state
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -50,7 +50,7 @@ def _interrupt_items(result: dict[str, Any]) -> list[Any]:
 
 def _invoke_with_human_resume(
     graph: Any,
-    state: dict[str, Any],
+    state: AgentState,
     run_config: dict[str, Any],
 ) -> tuple[dict[str, Any], int]:
     """Invoke a graph and interactively resume every real LangGraph interrupt."""

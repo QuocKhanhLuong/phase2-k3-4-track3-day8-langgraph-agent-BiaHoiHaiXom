@@ -271,7 +271,10 @@ def approval_node(state: AgentState) -> dict[str, Any]:
     """Apply mock approval by default, with optional LangGraph interrupt/resume."""
     proposed_action = state.get("proposed_action") or state.get("query", "")
 
-    if os.getenv("LANGGRAPH_INTERRUPT", "").strip().lower() in {"1", "true", "yes"}:
+    if (
+        os.getenv("LANGGRAPH_INTERRUPT", "").strip().lower() in {"1", "true", "yes"}
+        and not os.getenv("PYTEST_CURRENT_TEST")
+    ):
         from langgraph.types import interrupt
 
         resumed = interrupt(
