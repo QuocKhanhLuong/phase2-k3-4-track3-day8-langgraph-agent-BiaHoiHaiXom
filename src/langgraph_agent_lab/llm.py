@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-def get_llm(model: str | None = None, temperature: float = 0.0):
+def get_llm(model: str | None = None, temperature: float = 0.0) -> Any:
     """Create an LLM client from environment configuration.
 
     Provider priority is Gemini, then OpenAI, then Anthropic. ``LLM_MODEL`` can
