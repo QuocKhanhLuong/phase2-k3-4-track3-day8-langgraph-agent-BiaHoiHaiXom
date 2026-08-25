@@ -21,7 +21,7 @@ app = typer.Typer(no_args_is_help=True)
 
 
 def _history_evidence(graph: Any, run_config: dict[str, Any], thread_id: str) -> dict[str, Any]:
-    """Collect same-thread state-history evidence without claiming crash-resume."""
+    """Collect same-thread state-history evidence."""
     try:
         history = list(graph.get_state_history(run_config))
         return {
@@ -36,6 +36,57 @@ def _history_evidence(graph: Any, run_config: dict[str, Any], thread_id: str) ->
             "history_available": False,
             "error": f"{type(exc).__name__}: {exc}",
         }
+
+
+def _interrupt_items(result: dict[str, Any]) -> list[Any]:
+    """Return LangGraph interrupt objects from an invoke result."""
+    raw = result.get("__interrupt__", [])
+    if raw is None:
+        return []
+    if isinstance(raw, (list, tuple)):
+        return list(raw)
+    return [raw]
+
+
+def _invoke_with_human_resume(
+    graph: Any,
+    state: dict[str, Any],
+    run_config: dict[str, Any],
+) -> tuple[dict[str, Any], int]:
+    """Invoke a graph and interactively resume every real LangGraph interrupt."""
+    from langgraph.types import Command
+
+    result = graph.invoke(state, config=run_config)
+    interrupt_count = 0
+
+    while True:
+        interrupts = _interrupt_items(result)
+        if not interrupts:
+            return result, interrupt_count
+
+        interrupt_count += len(interrupts)
+        interrupt_obj = interrupts[0]
+        payload = getattr(interrupt_obj, "value", interrupt_obj)
+
+        typer.echo("\n--- LangGraph HITL approval required ---")
+        if isinstance(payload, dict):
+            proposed = payload.get("proposed_action")
+            if proposed:
+                typer.echo(f"Proposed action: {proposed}")
+        else:
+            typer.echo(f"Interrupt payload: {payload}")
+
+        approved = typer.confirm("Approve this action?", default=False)
+        reviewer = typer.prompt("Reviewer", default="human-reviewer")
+        default_comment = "approved by human reviewer" if approved else "rejected by human reviewer"
+        comment = typer.prompt("Comment", default=default_comment)
+
+        decision = {
+            "approved": approved,
+            "reviewer": reviewer,
+            "comment": comment,
+        }
+        result = graph.invoke(Command(resume=decision), config=run_config)
 
 
 @app.command("run-scenarios")
@@ -57,7 +108,7 @@ def run_scenarios(
         run_config = {"configurable": {"thread_id": state["thread_id"]}}
 
         started = perf_counter()
-        final_state = graph.invoke(state, config=run_config)
+        final_state, real_interrupts = _invoke_with_human_resume(graph, state, run_config)
         latency_ms = int((perf_counter() - started) * 1000)
 
         metrics.append(
@@ -66,16 +117,24 @@ def run_scenarios(
                 scenario.expected_route.value,
                 scenario.requires_approval,
                 latency_ms=latency_ms,
+                observed_interrupts=real_interrupts,
             )
         )
         evidence = _history_evidence(graph, run_config, state["thread_id"])
         evidence["scenario_id"] = scenario.id
+        evidence["real_interrupt_count"] = real_interrupts
+        evidence["resume_observed"] = real_interrupts > 0
         evidence["finalize_observed"] = any(
             event.get("node") == "finalize" for event in final_state.get("events", [])
         )
         persistence_evidence.append(evidence)
 
     report = summarize_metrics(metrics)
+    approval_metrics = [item for item in metrics if item.approval_required]
+    report.resume_success = bool(
+        approval_metrics
+        and all(item.success and item.interrupt_count > 0 for item in approval_metrics)
+    )
     write_metrics(report, output)
 
     evidence_path = output.with_name("persistence.json")
